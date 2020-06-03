@@ -1,0 +1,18 @@
+//testing file
+// comment
+//push static 1
+//pop static 3
+//push tmp 3
+//comment
+//pop argument 0
+add
+sub
+/// comment
+neg
+push constant 0
+push constant 1
+push constant 32767
+eq
+eq
+eq
+eq
