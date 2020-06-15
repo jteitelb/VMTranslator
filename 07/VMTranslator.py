@@ -37,7 +37,14 @@ def isCommand(line):
     return not line.startswith('//')
 
 class ASM:
-    SEGMENTS = {"local": "LCL", "argument": "ARG", "this": "THIS", "that": "THAT"}
+    SEGMENTS = {   "local": "LCL",
+                "argument": "ARG",
+                    "this": "THIS",
+                    "that": "THAT"}
+    
+    POINTER = {0:"THIS", 1:"THAT"}
+    TEMP_BASE = 5
+    
     LOAD_SP = "@SP\n" + "A=M\n"
     LOAD_TOP = "@SP\n" + "A=M-1\n"
 
@@ -175,8 +182,8 @@ class CodeWriter:
         elif command == 'not':
             buffer += "M=!M\n"
         else:
-            print("Warning: unrecognized unary command")
-            buffer += "// unrecognized unary command"
+            print("WARNING: unrecognized unary command")
+            buffer += "// WARNING: unrecognized unary command"
         return buffer
 
     
@@ -192,8 +199,8 @@ class CodeWriter:
         elif command == "or":
             buffer += "M=M|D\n"
         else:
-            print("Warning: unrecognized binary command")
-            buffer += "// unrecognized binary command\n" + "M=0\n"
+            print("WARNING: unrecognized binary command")
+            buffer += "// WARNING: unrecognized binary command\n" + "M=0\n"
         return buffer
 
     def writeArithmetic(self, command):
@@ -208,7 +215,7 @@ class CodeWriter:
         elif command in ["eq", "lt", "gt"]:
             self.stream.write(self.getComparison(command))  
         else:
-            print("Warning: unrecognized arithmetic/logical command")
+            print("WARNING: unrecognized arithmetic/logical command")
             self.stream.write("// WARNING: unrecognized arithmetic/logical command\n")
 
     def writePushPop(self, commandType, segment, index):        
@@ -231,30 +238,41 @@ class CodeWriter:
                 buffer += "D=M\n"
                 buffer += ASM.PUSH_D
                 self.stream.write(buffer)
-            elif segment == "pointer":
-                pass
             elif segment == "temp":
-                pass
+                if index > 8:
+                    print("WARNING: temp index > 7")
+                    self.stream.write("// WARNING: temp index > 7\n")
+                buffer = ASM.valToD(index)
+                buffer += "@5\n"
+                buffer += "D=D+A\n"
+                buffer += "A=D\n"
+                buffer += "D=M\n"
+                buffer += ASM.PUSH_D
+                self.stream.write(buffer)
+            elif segment == "pointer":
+                buffer = f"@{ASM.POINTER[index]}\n"
+                buffer += "D=M\n"
+                buffer += ASM.PUSH_D
+                self.stream.write(buffer)
             else:
                 print("WARNING: unrecognized segment name")
                 self.stream.write("// WARNING: unrecognized segment name\n")
-            
-                
+                   
         elif commandType == CommandType.C_POP:
             self.stream.write("// pop %s %d\n" % (segment, index))
             if segment == "constant":
-                print("Warning: attempted to pop to constant segment")
-                self.stream.write("// Warning: attempted to pop to constant segment\n")
+                print("WARNING: attempted to pop to constant segment")
+                self.stream.write("// WARNING: attempted to pop to constant segment\n")
                 self.stream.write("//\t\tCurrent stack item will be lost\n")
                 self.stream.write(ASM.POP)
             elif segment in ASM.SEGMENTS: # local, argument, this, that
                 buffer = ASM.valToD(index)
                 buffer += f"@{ASM.SEGMENTS[segment]}\n"
                 buffer += "D=D+M\n"
-                buffer += "@addr\n"
+                buffer += "@R13\n"
                 buffer += "M=D\n"
                 buffer += ASM.POP_D
-                buffer += "@addr\n"
+                buffer += "@R13\n"
                 buffer += "A=M\n"
                 buffer += "M=D\n"
                 self.stream.write(buffer)
@@ -263,39 +281,34 @@ class CodeWriter:
                 buffer += f"@{self.module}.{index}\n"
                 buffer += "M=D\n"
                 self.stream.write(buffer)
-            elif segment == "pointer":
-                pass
             elif segment == "temp":
-                pass
-            else:
-                print("Warning: attempted to push to unknown segment")
+                if index > 8:
+                    print("WARNING: temp index > 7")
+                    self.stream.write("// WARNING: temp index > 7\n")
+                '''
+                buffer = ASM.valToD(index)
+                buffer += "@5\n"
+                buffer += "D=D+A\n"
+                buffer += "@R13\n"
+                buffer += "M=D\n"
+                '''
+                buffer = ASM.POP_D
+                '''
+                buffer += "@R13\n"
+                buffer += "A=M\n"
+                '''
+                buffer += f"@{index + ASM.TEMP_BASE}\n"
+                buffer += "M=D\n"
+                self.stream.write(buffer)
+            elif segment == "pointer":
+                buffer = ASM.POP_D
+                buffer += f"@{ASM.POINTER[index]}\n"
+                buffer += "M=D\n"
+                self.stream.write(buffer)
 
-            '''
-            pop local i:
-            // addr = LCL + i
-                // D = *LCL
-                @LCL
-                D=M
-                // D = D+i
-                @i
-                D=D+A
-                //addr = D
-                @addr
-                M=D    
-            // SP--
-                @SP
-                M=M-1
-            // *addr = *SP
-                // D=*SP
-                @SP
-                A=M
-                D=M
-                // *addr = D
-                @addr
-                A=M
-                M=D
-                    
-            '''
+            else:
+                print("WARNING: attempted to push to unknown segment")
+                self.stream.write("// WARNING: attempted to push to unknown segment")
 
     def close(self):
         self.stream.close()

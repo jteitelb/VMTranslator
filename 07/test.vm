@@ -30,3 +30,10 @@ pop argument 3
 pop this 12
 pop that 127
 pop static 12
+push temp 3
+pop temp 3
+pop temp 20
+push pointer 0
+push pointer 1
+pop pointer 0
+pop pointer 1
