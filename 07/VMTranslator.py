@@ -1,5 +1,6 @@
 from sys import argv
 from enum import Enum
+from os.path import basename
 
 '''
 arithmetic/logical:
@@ -136,7 +137,7 @@ class CodeWriter:
     logical = ["eq","lt","gt","and","or"]
     def __init__(self, fileOut):
         self.fileOut = fileOut
-        self.module = fileOut[:-4]
+        self.module = basename(fileOut)[:-4]
         self.stream = open(fileOut, 'w')
         self.labelCount = dict((s, 0) for s in self.logical)
     
@@ -317,7 +318,7 @@ class CodeWriter:
 
 
 if __name__ == "__main__":
-    argv = ["VMTranslator", "test.vm"]
+    #argv = ["VMTranslator", "test.vm"]
     argc = len(argv)
     if argc != 2:
         print("Usage: %s <Filename>.vm" % argv[0])
@@ -328,8 +329,9 @@ if __name__ == "__main__":
         outFile = inFile[:-2] + "asm"
 
         parser = Parser(inFile)
+        print(f"parsing from '{inFile}'...")
         writer = CodeWriter(outFile)
-        print(inFile, outFile)
+        print(f"writing to '{outFile}'...")
         while(parser.hasMoreCommands()):
             parser.advance()
             comType = parser.commandType()
@@ -341,6 +343,7 @@ if __name__ == "__main__":
                 
         parser.close()
         writer.close()
+        print("done.")
 
 
 
