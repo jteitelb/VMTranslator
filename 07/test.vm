@@ -16,3 +16,17 @@ eq
 eq
 eq
 eq
+push local 0
+push local 1
+push local 30
+push argument 2
+push this 3
+push that 40
+push static 5
+pop constant 1
+pop local 1
+pop local 4
+pop argument 3
+pop this 12
+pop that 127
+pop static 12

@@ -37,15 +37,18 @@ def isCommand(line):
     return not line.startswith('//')
 
 class ASM:
+    SEGMENTS = {"local": "LCL", "argument": "ARG", "this": "THIS", "that": "THAT"}
     LOAD_SP = "@SP\n" + "A=M\n"
     LOAD_TOP = "@SP\n" + "A=M-1\n"
+
+    LOAD_LCL = "@LCL\n" + "A=M\n"
     
     INC_SP = "@SP\n" + "M=M+1\n"
     PUSH_D = LOAD_SP + "M=D\n" + INC_SP
     
     DEC_DEREF = "AM=M-1\n"
     POP = "@SP\n" + DEC_DEREF
-    POP_D = POP + "D=M\n"
+    POP_D = POP + "D=M\n" # post: address in A is where top used to be
     
     # could implement up to INT_MAX with an add
     # could also allow negative numbers by adding them to INT_MAX
@@ -56,6 +59,7 @@ class ASM:
             raise ValueError(f"expected value between 0 and {ADDR_MAX}")
         result = f"@{val}\nD=A\n"
         return result
+        
         
         
         
@@ -125,9 +129,25 @@ class CodeWriter:
     logical = ["eq","lt","gt","and","or"]
     def __init__(self, fileOut):
         self.fileOut = fileOut
+        self.module = fileOut[:-4]
         self.stream = open(fileOut, 'w')
         self.labelCount = dict((s, 0) for s in self.logical)
-
+    
+    # TODO: subtraction broken unless same sign (and < 2^15):
+    # subtract only when same sign
+    # else neg < pos
+    '''
+    if arg2 < 0
+        if arg1 <= 0:
+            subtract
+        else:
+            arg2 < arg1
+    else:
+        if arg1 >= 0:
+            subtract
+        else:
+            arg1 < arg2           
+    '''
     def getComparison(self, command):
         jmpLabel = f"JMP_{command.upper()}_{self.labelCount[command]}"
         doneLabel= f"DONE_{command.upper()}_{self.labelCount[command]}"
@@ -159,7 +179,7 @@ class CodeWriter:
             buffer += "// unrecognized unary command"
         return buffer
 
-
+    
     def getBinary(self, command):
         buffer = ASM.POP_D
         buffer += "A=A-1\n"  
@@ -198,23 +218,58 @@ class CodeWriter:
                 buffer = ASM.valToD(index)
                 buffer += ASM.PUSH_D
                 self.stream.write(buffer)
-
-            '''
-            push constant i:
-            //D = i
-                @i
-                D=A
-            // *SP = D
-                @SP
-                A=M
-                M=D
-            // SP++
-                @SP
-                M=M+1
-            '''
-            pass
-        if commandType == CommandType.C_POP:
+            elif segment in ASM.SEGMENTS: # segments local, argument, this, that
+                buffer = ASM.valToD(index)
+                buffer += f"@{ASM.SEGMENTS[segment]}\n"
+                buffer += "D=D+M\n"
+                buffer += "A=D\n"
+                buffer += "D=M\n"
+                buffer += ASM.PUSH_D
+                self.stream.write(buffer)
+            elif segment == "static":
+                buffer = f"@{self.module}.{index}\n"
+                buffer += "D=M\n"
+                buffer += ASM.PUSH_D
+                self.stream.write(buffer)
+            elif segment == "pointer":
+                pass
+            elif segment == "temp":
+                pass
+            else:
+                print("WARNING: unrecognized segment name")
+                self.stream.write("// WARNING: unrecognized segment name\n")
+            
+                
+        elif commandType == CommandType.C_POP:
             self.stream.write("// pop %s %d\n" % (segment, index))
+            if segment == "constant":
+                print("Warning: attempted to pop to constant segment")
+                self.stream.write("// Warning: attempted to pop to constant segment\n")
+                self.stream.write("//\t\tCurrent stack item will be lost\n")
+                self.stream.write(ASM.POP)
+            elif segment in ASM.SEGMENTS: # local, argument, this, that
+                buffer = ASM.valToD(index)
+                buffer += f"@{ASM.SEGMENTS[segment]}\n"
+                buffer += "D=D+M\n"
+                buffer += "@addr\n"
+                buffer += "M=D\n"
+                buffer += ASM.POP_D
+                buffer += "@addr\n"
+                buffer += "A=M\n"
+                buffer += "M=D\n"
+                self.stream.write(buffer)
+            elif segment == "static":
+                buffer = ASM.POP_D
+                buffer += f"@{self.module}.{index}\n"
+                buffer += "M=D\n"
+                self.stream.write(buffer)
+            elif segment == "pointer":
+                pass
+            elif segment == "temp":
+                pass
+            else:
+                print("Warning: attempted to push to unknown segment")
+
             '''
             pop local i:
             // addr = LCL + i
@@ -241,12 +296,15 @@ class CodeWriter:
                 M=D
                     
             '''
-            pass
 
     def close(self):
         self.stream.close()
-    
+
+
+
+
 if __name__ == "__main__":
+    argv = ["VMTranslator", "test.vm"]
     argc = len(argv)
     if argc != 2:
         print("Usage: %s <Filename>.vm" % argv[0])
@@ -273,4 +331,4 @@ if __name__ == "__main__":
 
 
 
-    
+
