@@ -65,13 +65,32 @@ class ASM:
     def valToD(val):
         if val < 0 or val > ADDR_MAX:
             raise ValueError(f"expected value between 0 and {ADDR_MAX}")
-        result = f"@{val}\nD=A\n"
-        return result
-        
-    def getASMLabel(label):
-        return f"VM_LABEL_{label}"
-        
-        
+        buffer = f"@{val}\n"
+        buffer += "D=A\n"
+        return buffer
+
+    def pushAddr(segment):
+        if segment in ASM.SEGMENTS.values():
+            buffer = f"@{segment}\n"
+            buffer += "D=M\n"
+            buffer += ASM.PUSH_D
+            return buffer
+        print(f"Error: invalid segment '{segment}'\n")
+        return f"// invalid segment '{segment}'\n"
+
+    # A instruction: constant, label, or variable
+    def load(a):
+        return f"@{a}\n"
+    
+    def DToPtr(ptr):
+        buffer = ASM.load(ptr)
+        buffer += "M=D\n"
+        return buffer
+
+    def ptrToD(ptr):
+        buffer = ASM.load(ptr)
+        buffer += "D=M\n"
+        return buffer
 
 class Parser:
     def __init__(self, fileIn):
@@ -164,6 +183,9 @@ class CodeWriter:
         self.module = os.path.basename(fileOut)[:-4]
         self.stream = open(fileOut, 'w')
         self.labelCount = dict((s, 0) for s in self.logical)
+        self.returnLabelCount = 0
+        self.currentFunction = ""
+        
     
     # TODO: subtraction broken unless same sign (and < 2^15):
     # subtract only when same sign
@@ -180,6 +202,8 @@ class CodeWriter:
         else:
             arg1 < arg2           
     '''
+
+    
     def getComparison(self, command):
         jmpLabel = f"JMP_{command.upper()}_{self.labelCount[command]}"
         doneLabel= f"DONE_{command.upper()}_{self.labelCount[command]}"
@@ -334,34 +358,80 @@ class CodeWriter:
             else:
                 print("WARNING: attempted to push to unknown segment")
                 self.stream.write("// WARNING: attempted to push to unknown segment")
+
+    def getLabel(self, label):
+        return f"{self.module}.{self.currentFunction}${label}"
+
+    def getFunctionLabel(self):
+        return f"{self.module}.{self.currentFunction}"
+
+    def getReturnLabel(self):
+        self.returnLabelCount += 1
+        return f"{self.module}.{self.currentFunction}$ret.{self.returnLabelCount}"
     
     def writeLabel(self, label):
         buffer = f"// label {label}\n"
-        buffer += f"({ASM.getASMLabel(label)})\n"
+        buffer += f"({self.getLabel(label)})\n"
         self.stream.write(buffer)
         
     def writeGoto(self, label):
         buffer = f"// goto {label}\n"
-        buffer += f"@{ASM.getASMLabel(label)}\n"
+        buffer += f"@{self.getLabel(label)}\n"
         buffer += "0;JMP\n"
         self.stream.write(buffer)
         
     def writeIf(self, label):
         buffer = f"// if-goto {label}\n"
         buffer += ASM.POP_D
-        buffer += f"@{ASM.getASMLabel(label)}\n"
+        buffer += f"@{self.getLabel(label)}\n"
         buffer += "D;JNE\n"
         self.stream.write(buffer)
+
     
     def writeFunction(self, functionName, numVars):
+        self.currentFunction = functionName
         buffer = f"// function {functionName} {numVars}\n"
         self.stream.write(buffer)
+        
     def writeCall(self, functionName, numArgs):
         buffer = f"// call {functionName} {numArgs}\n"
+
+        # push return address
+        retLabel = self.getReturnLabel()
+        buffer += ASM.load(retLabel)
+        buffer += "D=A\n"
+        buffer += ASM.PUSH_D
+        
+        #push LCL, ARG, THIS, THAT
+        buffer += ASM.pushAddr("LCL")
+        buffer += ASM.pushAddr("ARG")
+        buffer += ASM.pushAddr("THIS")
+        buffer += ASM.pushAddr("THAT")
+
+        # ARG = SP - (5 + numArgs)
+        offset = int(numArgs) + 5
+        
+        buffer += ASM.ptrToD("SP") # D = SP
+        buffer += f"@{offset}\n"
+        buffer += "D=D-A\n" # D = SP - (5 + numArgs)
+        buffer += ASM.DToPtr("ARG") # ARG = D
+        
+        # LCL = SP
+        buffer += ASM.ptrToD("SP")
+        buffer += ASM.DToPtr("LCL")
+        
+        # goto function
+        buffer += f"@{self.module}.{functionName}\n"
+        buffer += "0;JMP\n"
+
+        # write return address label
+        buffer += f"({retLabel})\n"
         self.stream.write(buffer)
+        
     def writeReturn(self):
         buffer = f"// return\n"
         self.stream.write(buffer)
+        self.currentFunction = ""
         
     def writeInit(self):
         buffer = f"// init\n"
