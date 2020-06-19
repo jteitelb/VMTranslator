@@ -1,7 +1,6 @@
 import os
 from sys import argv
 
-from asm import ASM
 from commandtype import CommandType
 from vmparser import Parser
 from codewriter import CodeWriter
