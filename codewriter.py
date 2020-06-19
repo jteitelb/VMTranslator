@@ -98,11 +98,11 @@ class CodeWriter:
         if commandType == CommandType.C_PUSH:
             self.stream.write("// push %s %d\n" % (segment, index))
             if segment == "constant":
-                buffer = asm.valToD(index)
+                buffer = asm.val_to_d(index)
                 buffer += asm.PUSH_D
                 self.stream.write(buffer)
             elif segment in asm.SEGMENTS: # segments local, argument, this, that
-                buffer = asm.valToD(index)
+                buffer = asm.val_to_d(index)
                 buffer += f"@{asm.SEGMENTS[segment]}\n"
                 buffer += "D=D+M\n"
                 buffer += "A=D\n"
@@ -118,7 +118,7 @@ class CodeWriter:
                 if index > 8:
                     print("WARNING: temp index > 7")
                     self.stream.write("// WARNING: temp index > 7\n")
-                buffer = asm.valToD(index)
+                buffer = asm.val_to_d(index)
                 buffer += "@5\n"
                 buffer += "D=D+A\n"
                 buffer += "A=D\n"
@@ -142,7 +142,7 @@ class CodeWriter:
                 self.stream.write("//\t\tCurrent stack item will be lost\n")
                 self.stream.write(asm.POP)
             elif segment in asm.SEGMENTS: # local, argument, this, that
-                buffer = asm.valToD(index)
+                buffer = asm.val_to_d(index)
                 buffer += f"@{asm.SEGMENTS[segment]}\n"
                 buffer += "D=D+M\n"
                 buffer += "@R13\n"
@@ -230,22 +230,22 @@ class CodeWriter:
         buffer += asm.PUSH_D
         
         #push LCL, ARG, THIS, THAT
-        buffer += asm.pushAddr("LCL")
-        buffer += asm.pushAddr("ARG")
-        buffer += asm.pushAddr("THIS")
-        buffer += asm.pushAddr("THAT")
+        buffer += asm.push_address("LCL")
+        buffer += asm.push_address("ARG")
+        buffer += asm.push_address("THIS")
+        buffer += asm.push_address("THAT")
 
         # ARG = SP - (5 + numArgs)
         offset = int(numArgs) + 5
         
-        buffer += asm.ptrToD("SP") # D = SP
+        buffer += asm.ptr_to_d("SP") # D = SP
         buffer += f"@{offset}\n"
         buffer += "D=D-A\n" # D = SP - (5 + numArgs)
-        buffer += asm.DToPtr("ARG") # ARG = D
+        buffer += asm.d_to_ptr("ARG") # ARG = D
         
         # LCL = SP
-        buffer += asm.ptrToD("SP")
-        buffer += asm.DToPtr("LCL")
+        buffer += asm.ptr_to_d("SP")
+        buffer += asm.d_to_ptr("LCL")
         
         # goto function
         buffer += f"@{self.module}.{functionName}\n"
