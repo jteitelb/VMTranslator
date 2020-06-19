@@ -1,6 +1,6 @@
 from sys import argv
 from enum import Enum
-from os.path import basename
+import os
 
 '''
 arithmetic/logical:
@@ -68,7 +68,8 @@ class ASM:
         result = f"@{val}\nD=A\n"
         return result
         
-        
+    def getASMLabel(label):
+        return f"VM_LABEL_{label}"
         
         
 
@@ -113,14 +114,37 @@ class Parser:
             return CommandType.INVALID_COMMAND
         
         first = split[0]
+        commandFirst = {CommandType.C_ARITHMETIC: {"add", "sub", "neg","eq","lt","gt","and","or"},
+                        CommandType.C_PUSH: {"push"},
+                        CommandType.C_POP: {"pop"},
+                        CommandType.C_LABEL: {"label"},
+                        CommandType.C_GOTO: {"goto"},
+                        CommandType.C_IF: {"if-goto"},
+                        CommandType.C_FUNCTION: {"function"},
+                        CommandType.C_RETURN: {"return"},
+                        CommandType.C_CALL: {"call"}}
+        
+        for cType in commandFirst:
+            if first in commandFirst[cType]:
+                return cType
+
+        return CommandType.INVALID_COMMAND
+        '''
         if numTokens == 1:
-            return CommandType.C_ARITHMETIC
+            if first == "return":
+                return commandType.C_RETURN
+            elif first in ["add", "sub", "neg"]:
+                return CommandType.C_ARITHMETIC
+            else:
+                return CommandType.INVALID_COMMAND
+        elif numTokens == 2:
+            pass
         elif numTokens == 3:
             if first == "push":
                 return CommandType.C_PUSH
             if first == "pop":
                 return CommandType.C_POP
-        return CommandType.INVALID_COMMAND
+        '''
 
     def arg1(self):
         ctype = self.commandType()
@@ -137,7 +161,7 @@ class CodeWriter:
     logical = ["eq","lt","gt","and","or"]
     def __init__(self, fileOut):
         self.fileOut = fileOut
-        self.module = basename(fileOut)[:-4]
+        self.module = os.path.basename(fileOut)[:-4]
         self.stream = open(fileOut, 'w')
         self.labelCount = dict((s, 0) for s in self.logical)
     
@@ -310,41 +334,103 @@ class CodeWriter:
             else:
                 print("WARNING: attempted to push to unknown segment")
                 self.stream.write("// WARNING: attempted to push to unknown segment")
-
+    
+    def writeLabel(self, label):
+        buffer = f"// label {label}\n"
+        buffer += f"({ASM.getASMLabel(label)})\n"
+        self.stream.write(buffer)
+        
+    def writeGoto(self, label):
+        buffer = f"// goto {label}\n"
+        buffer += f"@{ASM.getASMLabel(label)}\n"
+        buffer += "0;JMP\n"
+        self.stream.write(buffer)
+        
+    def writeIf(self, label):
+        buffer = f"// if-goto {label}\n"
+        buffer += ASM.POP_D
+        buffer += f"@{ASM.getASMLabel(label)}\n"
+        buffer += "D;JNE\n"
+        self.stream.write(buffer)
+    
+    def writeFunction(self, functionName, numVars):
+        buffer = f"// function {functionName} {numVars}\n"
+        self.stream.write(buffer)
+    def writeCall(self, functionName, numArgs):
+        buffer = f"// call {functionName} {numArgs}\n"
+        self.stream.write(buffer)
+    def writeReturn(self):
+        buffer = f"// return\n"
+        self.stream.write(buffer)
+        
+    def writeInit(self):
+        buffer = f"// init\n"
+        self.stream.write(buffer)        
+        
     def close(self):
         self.stream.close()
 
 
-
-
-if __name__ == "__main__":
+def main():
     #argv = ["VMTranslator", "test.vm"]
     argc = len(argv)
     if argc != 2:
-        print("Usage: %s <Filename>.vm" % argv[0])
-    elif not argv[1].endswith(".vm"):
-        print("Error: Expected .vm file!")
-    else:
-        inFile = argv[1]
+        print("Usage: %s <File or Directory>" % argv[0])
+        return
+    
+    inFile = argv[1]
+    
+    if os.path.isfile(inFile):
+        if not argv[1].endswith(".vm"):
+            print("Error: Expected .vm file!")
+            return
         outFile = inFile[:-2] + "asm"
+    elif os.path.isdir(inFile):
+        print("Directory Found!")
+        vmFiles = [os.path.join(inFile, file) for file in os.listdir(inFile) if file.endswith(".vm")]
+        if len(vmFiles) < 1:
+            print("No vm files found in", inFile)
+            return
+        print(len(vmFiles), "vm file(s) found.")
+        return
+    else:
+        print(f"Error: no file or directory found named \"{inFile}\"")
+        return
 
-        parser = Parser(inFile)
-        print(f"parsing from '{inFile}'...")
-        writer = CodeWriter(outFile)
-        print(f"writing to '{outFile}'...")
-        while(parser.hasMoreCommands()):
-            parser.advance()
-            comType = parser.commandType()
-            current = parser.currentCommand
-            if comType == CommandType.C_ARITHMETIC:
-                writer.writeArithmetic(current)
-            elif comType == CommandType.C_PUSH or comType == CommandType.C_POP:
-                writer.writePushPop(comType, parser.arg1(), int(parser.arg2()))
-                
-        parser.close()
-        writer.close()
-        print("done.")
+# create parser and writer
+
+    parser = Parser(inFile)
+    print(f"parsing from '{inFile}'...")
+    writer = CodeWriter(outFile)
+    print(f"writing to '{outFile}'...")
+    while(parser.hasMoreCommands()):
+        parser.advance()
+        comType = parser.commandType()
+        current = parser.currentCommand
+        if comType == CommandType.C_ARITHMETIC:
+            writer.writeArithmetic(current)
+        elif comType in [CommandType.C_PUSH, CommandType.C_POP]:
+            writer.writePushPop(comType, parser.arg1(), int(parser.arg2()))
+        elif comType == CommandType.C_LABEL:
+            writer.writeLabel(parser.arg1())
+        elif comType == CommandType.C_GOTO:
+            writer.writeGoto(parser.arg1())
+        elif comType == CommandType.C_IF:
+            writer.writeIf(parser.arg1())
+        elif comType == CommandType.C_FUNCTION:
+            writer.writeFunction(parser.arg1(), parser.arg2())
+        elif comType == CommandType.C_CALL:
+            writer.writeCall(parser.arg1(), parser.arg2())
+        elif comType == CommandType.C_RETURN:
+            writer.writeReturn()
+        else:
+            print("Error: unrecognized command")
+      
+    parser.close()
+    writer.close()
+    print("done.")
 
 
-
+if __name__ == "__main__":
+    main()
 
