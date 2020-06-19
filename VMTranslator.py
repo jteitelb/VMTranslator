@@ -49,21 +49,21 @@ def main():
         #       -writeCommand belongs in CodeWriter
 
         if comType == CommandType.C_ARITHMETIC:
-            writer.writeArithmetic(current)
+            writer.write_arithmetic(current)
         elif comType in [CommandType.C_PUSH, CommandType.C_POP]:
-            writer.writePushPop(comType, parser.arg1(), int(parser.arg2()))
+            writer.write_push_pop(comType, parser.arg1(), int(parser.arg2()))
         elif comType == CommandType.C_LABEL:
-            writer.writeLabel(parser.arg1())
+            writer.write_label(parser.arg1())
         elif comType == CommandType.C_GOTO:
-            writer.writeGoto(parser.arg1())
+            writer.write_goto(parser.arg1())
         elif comType == CommandType.C_IF:
-            writer.writeIf(parser.arg1())
+            writer.write_if(parser.arg1())
         elif comType == CommandType.C_FUNCTION:
-            writer.writeFunction(parser.arg1(), parser.arg2())
+            writer.write_function(parser.arg1(), parser.arg2())
         elif comType == CommandType.C_CALL:
-            writer.writeCall(parser.arg1(), parser.arg2())
+            writer.write_call(parser.arg1(), parser.arg2())
         elif comType == CommandType.C_RETURN:
-            writer.writeReturn()
+            writer.write_return()
         else:
             print("Error: unrecognized command")
       
