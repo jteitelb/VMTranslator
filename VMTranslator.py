@@ -38,9 +38,9 @@ def main():
     print(f"parsing from '{input_arg}'...")
     writer = CodeWriter(out_file)
     print(f"writing to '{out_file}'...")
-    while parser.hasMoreCommands():
+    while parser.has_more_commands():
         parser.advance()
-        comType = parser.commandType()
+        comType = parser.command_type()
         current = parser.currentCommand
 
         # this is ugly. Alternatives?

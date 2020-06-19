@@ -1,20 +1,22 @@
 from commandtype import CommandType
 
-def isCommand(line):
+
+def is_command(line):
     return not line.startswith('//')
 
+
 class Parser:
-    def __init__(self, fileIn):
-        self.fileIn = fileIn
-        self.stream = open(fileIn, 'r')
-        
+    def __init__(self, file_in):
+        self.fileIn = file_in
+        self.stream = open(file_in, 'r')
+
         self.currentCommand = ''
         self.nextCommand = ''
         self.advance()
-            
-    def hasMoreCommands(self):
+
+    def has_more_commands(self):
         return self.nextCommand != ''
-    
+
     def advance(self):
         self.currentCommand = self.nextCommand
         while True:
@@ -22,29 +24,29 @@ class Parser:
             if line == '':
                 self.nextCommand = ''
                 break
-            if isCommand(line):
-                if (line.endswith('\n')):
+            if is_command(line):
+                if line.endswith('\n'):
                     line = line[:-1]
-                if (line.endswith('\r')):
+                if line.endswith('\r'):
                     line = line[:-1]
                 if len(line) == 0:
                     continue
                 self.nextCommand = line
                 break
         return self.currentCommand
-     
+
     def close(self):
         self.stream.close()
 
-    def commandType(self):
-        split = self.currentCommand.split() # splits based on whitespace
+    def command_type(self):
+        split = self.currentCommand.split()  # splits based on whitespace
         numTokens = len(split)
         if numTokens == 0:
-            print("no tokens for commandType to operate on")
+            print("no tokens for command_type to operate on")
             return CommandType.INVALID_COMMAND
-        
+
         first = split[0]
-        commandFirst = {CommandType.C_ARITHMETIC: {"add", "sub", "neg","eq","lt","gt","and","or"},
+        commandFirst = {CommandType.C_ARITHMETIC: {"add", "sub", "neg", "eq", "lt", "gt", "and", "or"},
                         CommandType.C_PUSH: {"push"},
                         CommandType.C_POP: {"pop"},
                         CommandType.C_LABEL: {"label"},
@@ -53,20 +55,19 @@ class Parser:
                         CommandType.C_FUNCTION: {"function"},
                         CommandType.C_RETURN: {"return"},
                         CommandType.C_CALL: {"call"}}
-        
+
         for cType in commandFirst:
             if first in commandFirst[cType]:
                 return cType
 
         return CommandType.INVALID_COMMAND
 
-
     def arg1(self):
-        ctype = self.commandType()
+        ctype = self.command_type()
         index = 1
         if ctype == CommandType.C_ARITHMETIC:
             index = 0
         return self.currentCommand.split()[index]
-    
+
     def arg2(self):
         return self.currentCommand.split()[2]

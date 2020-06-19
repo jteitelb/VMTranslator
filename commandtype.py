@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class CommandType(Enum):
     INVALID_COMMAND = 0
     C_ARITHMETIC = 1
