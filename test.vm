@@ -1,8 +1,9 @@
-function myFunc 0
-add
-return
-
 push constant 1
 push constant 1
 call myFunc 2
 
+function myFunc 0
+push argument 0
+push argument 1
+add
+return

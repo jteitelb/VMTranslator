@@ -218,6 +218,7 @@ class CodeWriter:
     def write_function(self, function_name, num_vars):
         self.currentFunction = function_name
         buffer = f"// function {function_name} {num_vars}\n"
+        buffer += f"({self.module}.{function_name})\n"
         buffer += "D=0\n"
         for i in range(int(num_vars)):
             buffer += asm.PUSH_D
@@ -271,7 +272,7 @@ class CodeWriter:
         # return address = *(endFrame - 5)
         buffer += "@5\n"
         buffer += "D=D-A\n"
-        buffer += "A=M\n"
+        buffer += "A=D\n"
         buffer += "D=M\n"
         buffer += "@R14\n"
         buffer += "M=D\n"
