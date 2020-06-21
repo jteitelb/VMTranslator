@@ -323,6 +323,9 @@ class CodeWriter:
 
     def write_init(self):
         buffer = f"// init\n"
+        buffer += asm.val_to_ptr(256, "SP")
+        buffer += "@Sys.init\n"
+        buffer += "0;JMP\n"
         self.stream.write(buffer)
 
     def close(self):

@@ -24,10 +24,13 @@ POP = "@SP\n" + DEC_DEREF
 POP_D = POP + "D=M\n"  # post: address in A is where top used to be
 
 
+# A instruction: constant, label, or variable
+def load(a):
+    return f"@{a}\n"
+
 # could implement up to INT_MAX with an add
 # could also allow negative numbers by adding them to INT_MAX
 #   up to -(ADDRESS_MAX+1)
-
 def val_to_d(val):
     if val < 0 or val > ADDRESS_MAX:
         raise ValueError(f"expected value between 0 and {ADDRESS_MAX}")
@@ -35,6 +38,20 @@ def val_to_d(val):
     buffer += "D=A\n"
     return buffer
 
+def d_to_ptr(ptr):
+    buffer = load(ptr)
+    buffer += "M=D\n"
+    return buffer
+
+def val_to_ptr(val, ptr):
+    buffer = val_to_d(val)
+    buffer += d_to_ptr(ptr)
+    return buffer
+
+def ptr_to_d(ptr):
+    buffer = load(ptr)
+    buffer += "D=M\n"
+    return buffer
 
 def push_address(segment):
     if segment in SEGMENTS.values():
@@ -46,18 +63,8 @@ def push_address(segment):
     return f"// invalid segment '{segment}'\n"
 
 
-# A instruction: constant, label, or variable
-def load(a):
-    return f"@{a}\n"
 
 
-def d_to_ptr(ptr):
-    buffer = load(ptr)
-    buffer += "M=D\n"
-    return buffer
 
 
-def ptr_to_d(ptr):
-    buffer = load(ptr)
-    buffer += "D=M\n"
-    return buffer
+
