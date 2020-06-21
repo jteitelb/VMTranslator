@@ -1,4 +1,8 @@
 function myFunc 0
-call test 2
+add
 return
+
+push constant 1
+push constant 1
+call myFunc 2
 

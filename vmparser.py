@@ -46,7 +46,7 @@ class Parser:
             return CommandType.INVALID_COMMAND
 
         first = split[0]
-        commandFirst = {CommandType.C_ARITHMETIC: {"add", "sub", "neg", "eq", "lt", "gt", "and", "or"},
+        commandFirst = {CommandType.C_ARITHMETIC: {"add", "sub", "neg", "eq", "lt", "gt", "and", "or", "not"},
                         CommandType.C_PUSH: {"push"},
                         CommandType.C_POP: {"pop"},
                         CommandType.C_LABEL: {"label"},

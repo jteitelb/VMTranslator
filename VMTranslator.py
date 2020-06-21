@@ -65,7 +65,8 @@ def main():
         elif comType == CommandType.C_RETURN:
             writer.write_return()
         else:
-            print("Error: unrecognized command")
+            print("Error: unrecognized command:")
+            print(parser.currentCommand)
       
     parser.close()
     writer.close()

@@ -218,6 +218,9 @@ class CodeWriter:
     def write_function(self, function_name, num_vars):
         self.currentFunction = function_name
         buffer = f"// function {function_name} {num_vars}\n"
+        buffer += "D=0\n"
+        for i in range(int(num_vars)):
+            buffer += asm.PUSH_D
         self.stream.write(buffer)
 
     def write_call(self, function_name, num_args):
@@ -257,6 +260,63 @@ class CodeWriter:
 
     def write_return(self):
         buffer = f"// return\n"
+
+        # endFrame = LCL
+        buffer += asm.ptr_to_d("LCL")
+        buffer += "@R13\n"
+        buffer += "M=D\n"
+        buffer += "@R15\n"
+        buffer += "M=D\n"
+
+        # return address = *(endFrame - 5)
+        buffer += "@5\n"
+        buffer += "D=D-A\n"
+        buffer += "A=M\n"
+        buffer += "D=M\n"
+        buffer += "@R14\n"
+        buffer += "M=D\n"
+
+        # *ARG = pop(), move return to caller
+        buffer += asm.POP_D
+        buffer += "@ARG\n"
+        buffer += "A=M\n"
+        buffer += "M=D\n"
+
+        # SP = ARG + 1
+        buffer += "@ARG\n"
+        buffer += "D=M+1\n"
+        buffer += "@SP\n"
+        buffer += "M=D\n"
+
+        # THAT = *(endFrame-1)
+        buffer += "@R15\n"
+        buffer += "AM=M-1\n"
+        buffer += "D=M\n"
+        buffer += asm.d_to_ptr("THAT")
+
+        # THIS = *(endFrame-2)
+        buffer += "@R15\n"
+        buffer += "AM=M-1\n"
+        buffer += "D=M\n"
+        buffer += asm.d_to_ptr("THIS")
+
+        # ARG = *(endFrame-3)
+        buffer += "@R15\n"
+        buffer += "AM=M-1\n"
+        buffer += "D=M\n"
+        buffer += asm.d_to_ptr("ARG")
+
+        # LCL = *(endFrame-4)
+        buffer += "@R15\n"
+        buffer += "AM=M-1\n"
+        buffer += "D=M\n"
+        buffer += asm.d_to_ptr("LCL")
+
+        # goto return address
+        buffer += "@R14\n"
+        buffer += "A=M\n"
+        buffer += "0;JMP\n"
+
         self.stream.write(buffer)
         self.currentFunction = ""
 
