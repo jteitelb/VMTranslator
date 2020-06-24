@@ -188,14 +188,14 @@ class CodeWriter:
                 self.stream.write("// WARNING: attempted to push to unknown segment")
 
     def get_label(self, label):
-        return f"{self.module}.{self.currentFunction}${label}"
+        return f"{self.currentFunction}${label}"
 
     def get_function_label(self):
-        return f"{self.module}.{self.currentFunction}"
+        return f"{self.currentFunction}"
 
     def get_return_label(self):
         self.returnLabelCount += 1
-        return f"{self.module}.{self.currentFunction}$ret.{self.returnLabelCount}"
+        return f"{self.currentFunction}$ret.{self.returnLabelCount}"
 
     def write_label(self, label):
         buffer = f"// label {label}\n"
@@ -217,11 +217,15 @@ class CodeWriter:
 
     def write_function(self, function_name, num_vars):
         self.currentFunction = function_name
+        self.returnLabelCount = 0
         buffer = f"// function {function_name} {num_vars}\n"
-        buffer += f"({self.module}.{function_name})\n"
-        buffer += "D=0\n"
-        for i in range(int(num_vars)):
-            buffer += asm.PUSH_D
+        buffer += f"({function_name})\n"
+
+        if int(num_vars) > 0:
+            buffer += "D=0\n"
+            for i in range(int(num_vars)):
+                buffer += asm.PUSH_D
+
         self.stream.write(buffer)
 
     def write_call(self, function_name, num_args):
@@ -252,7 +256,7 @@ class CodeWriter:
         buffer += asm.d_to_ptr("LCL")
 
         # goto function
-        buffer += f"@{self.module}.{function_name}\n"
+        buffer += f"@{function_name}\n"
         buffer += "0;JMP\n"
 
         # write return address label
@@ -319,7 +323,7 @@ class CodeWriter:
         buffer += "0;JMP\n"
 
         self.stream.write(buffer)
-        self.currentFunction = ""
+        #self.currentFunction = ""
 
     def write_init(self):
         buffer = f"// init\n"
