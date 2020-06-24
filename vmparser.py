@@ -25,13 +25,16 @@ class Parser:
                 self.nextCommand = ''
                 break
             if is_command(line):
+                comment_start = line.find("//")
+                if comment_start != -1:
+                    line = line[:comment_start]
                 if line.endswith('\n'):
                     line = line[:-1]
                 if line.endswith('\r'):
                     line = line[:-1]
                 if len(line) == 0:
                     continue
-                self.nextCommand = line
+                self.nextCommand = " ".join(line.split())
                 break
         return self.currentCommand
 
