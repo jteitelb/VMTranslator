@@ -11,25 +11,25 @@ class CodeWriter:
         self.fileOut = file_out
         self.module = os.path.basename(file_out)[:-4]
         self.stream = open(file_out, 'w')
-        self.labelCount = dict((s, 0) for s in self.logical)
+        self.labelCount = {s: 0 for s in self.logical}
         self.returnLabelCount = 0
         self.currentFunction = ""
 
     # TODO: subtraction broken unless same sign (and < 2^15):
     # subtract only when same sign
     # else neg < pos
-    '''
-    if arg2 < 0
-        if arg1 <= 0:
-            subtract
+        '''
+        if arg2 < 0
+            if arg1 <= 0:
+                subtract
+            else:
+                arg2 < arg1
         else:
-            arg2 < arg1
-    else:
-        if arg1 >= 0:
-            subtract
-        else:
-            arg1 < arg2           
-    '''
+            if arg1 >= 0:
+                subtract
+            else:
+                arg1 < arg2           
+        '''
 
     def get_comparison(self, command):
         jmpLabel = f"JMP_{command.upper()}_{self.labelCount[command]}"
@@ -95,98 +95,95 @@ class CodeWriter:
             print("WARNING: unrecognized arithmetic/logical command")
             self.stream.write("// WARNING: unrecognized arithmetic/logical command\n")
 
+    def write_push(self, segment, index):
+        self.stream.write("// push %s %d\n" % (segment, index))
+        if segment == "constant":
+            buffer = asm.val_to_d(index)
+            buffer += asm.PUSH_D
+            self.stream.write(buffer)
+        elif segment in asm.SEGMENTS:  # segments local, argument, this, that
+            buffer = asm.val_to_d(index)
+            buffer += f"@{asm.SEGMENTS[segment]}\n"
+            buffer += "D=D+M\n"
+            buffer += "A=D\n"
+            buffer += "D=M\n"
+            buffer += asm.PUSH_D
+            self.stream.write(buffer)
+        elif segment == "static":
+            buffer = f"@{self.module}.{index}\n"
+            buffer += "D=M\n"
+            buffer += asm.PUSH_D
+            self.stream.write(buffer)
+        elif segment == "temp":
+            if index > 8:
+                print("WARNING: temp index > 7")
+                self.stream.write("// WARNING: temp index > 7\n")
+            buffer = asm.val_to_d(index)
+            buffer += "@5\n"
+            buffer += "D=D+A\n"
+            buffer += "A=D\n"
+            buffer += "D=M\n"
+            buffer += asm.PUSH_D
+            self.stream.write(buffer)
+        elif segment == "pointer":
+            buffer = f"@{asm.POINTER[index]}\n"
+            buffer += "D=M\n"
+            buffer += asm.PUSH_D
+            self.stream.write(buffer)
+        else:
+            print("WARNING: unrecognized segment name")
+            self.stream.write("// WARNING: unrecognized segment name\n")
+
+    def write_pop(self, segment, index):
+        self.stream.write("// pop %s %d\n" % (segment, index))
+        if segment == "constant":
+            print("WARNING: attempted to pop to constant segment")
+            self.stream.write("// WARNING: attempted to pop to constant segment\n")
+            self.stream.write("//\t\tCurrent stack item will be lost\n")
+            self.stream.write(asm.POP)
+        elif segment in asm.SEGMENTS:  # local, argument, this, that
+            buffer = asm.val_to_d(index)
+            buffer += f"@{asm.SEGMENTS[segment]}\n"
+            buffer += "D=D+M\n"
+            buffer += "@R13\n"
+            buffer += "M=D\n"
+            buffer += asm.POP_D
+            buffer += "@R13\n"
+            buffer += "A=M\n"
+            buffer += "M=D\n"
+            self.stream.write(buffer)
+        elif segment == "static":
+            buffer = asm.POP_D
+            buffer += f"@{self.module}.{index}\n"
+            buffer += "M=D\n"
+            self.stream.write(buffer)
+        elif segment == "temp":
+            if index > 8:
+                print("WARNING: temp index > 7")
+                self.stream.write("// WARNING: temp index > 7\n")
+            buffer = asm.POP_D
+            buffer += f"@{index + asm.TEMP_BASE}\n"
+            buffer += "M=D\n"
+            self.stream.write(buffer)
+        elif segment == "pointer":
+            buffer = asm.POP_D
+            buffer += f"@{asm.POINTER[index]}\n"
+            buffer += "M=D\n"
+            self.stream.write(buffer)
+
+        else:
+            print("WARNING: attempted to push to unknown segment")
+            self.stream.write("// WARNING: attempted to push to unknown segment")
+
     def write_push_pop(self, command_type, segment, index):
         if command_type == CommandType.C_PUSH:
-            self.stream.write("// push %s %d\n" % (segment, index))
-            if segment == "constant":
-                buffer = asm.val_to_d(index)
-                buffer += asm.PUSH_D
-                self.stream.write(buffer)
-            elif segment in asm.SEGMENTS:  # segments local, argument, this, that
-                buffer = asm.val_to_d(index)
-                buffer += f"@{asm.SEGMENTS[segment]}\n"
-                buffer += "D=D+M\n"
-                buffer += "A=D\n"
-                buffer += "D=M\n"
-                buffer += asm.PUSH_D
-                self.stream.write(buffer)
-            elif segment == "static":
-                buffer = f"@{self.module}.{index}\n"
-                buffer += "D=M\n"
-                buffer += asm.PUSH_D
-                self.stream.write(buffer)
-            elif segment == "temp":
-                if index > 8:
-                    print("WARNING: temp index > 7")
-                    self.stream.write("// WARNING: temp index > 7\n")
-                buffer = asm.val_to_d(index)
-                buffer += "@5\n"
-                buffer += "D=D+A\n"
-                buffer += "A=D\n"
-                buffer += "D=M\n"
-                buffer += asm.PUSH_D
-                self.stream.write(buffer)
-            elif segment == "pointer":
-                buffer = f"@{asm.POINTER[index]}\n"
-                buffer += "D=M\n"
-                buffer += asm.PUSH_D
-                self.stream.write(buffer)
-            else:
-                print("WARNING: unrecognized segment name")
-                self.stream.write("// WARNING: unrecognized segment name\n")
-
+            self.write_push(segment, index)
         elif command_type == CommandType.C_POP:
-            self.stream.write("// pop %s %d\n" % (segment, index))
-            if segment == "constant":
-                print("WARNING: attempted to pop to constant segment")
-                self.stream.write("// WARNING: attempted to pop to constant segment\n")
-                self.stream.write("//\t\tCurrent stack item will be lost\n")
-                self.stream.write(asm.POP)
-            elif segment in asm.SEGMENTS:  # local, argument, this, that
-                buffer = asm.val_to_d(index)
-                buffer += f"@{asm.SEGMENTS[segment]}\n"
-                buffer += "D=D+M\n"
-                buffer += "@R13\n"
-                buffer += "M=D\n"
-                buffer += asm.POP_D
-                buffer += "@R13\n"
-                buffer += "A=M\n"
-                buffer += "M=D\n"
-                self.stream.write(buffer)
-            elif segment == "static":
-                buffer = asm.POP_D
-                buffer += f"@{self.module}.{index}\n"
-                buffer += "M=D\n"
-                self.stream.write(buffer)
-            elif segment == "temp":
-                if index > 8:
-                    print("WARNING: temp index > 7")
-                    self.stream.write("// WARNING: temp index > 7\n")
-                '''
-                buffer = asm.valToD(index)
-                buffer += "@5\n"
-                buffer += "D=D+A\n"
-                buffer += "@R13\n"
-                buffer += "M=D\n"
-                '''
-                buffer = asm.POP_D
-                '''
-                buffer += "@R13\n"
-                buffer += "A=M\n"
-                '''
-                buffer += f"@{index + asm.TEMP_BASE}\n"
-                buffer += "M=D\n"
-                self.stream.write(buffer)
-            elif segment == "pointer":
-                buffer = asm.POP_D
-                buffer += f"@{asm.POINTER[index]}\n"
-                buffer += "M=D\n"
-                self.stream.write(buffer)
-
-            else:
-                print("WARNING: attempted to push to unknown segment")
-                self.stream.write("// WARNING: attempted to push to unknown segment")
-
+            self.write_pop(segment, index)
+        else:
+            print("WARNING: attempted to write push/pop when command type not push or pop")
+            self.stream.write("// WARNING: attempted to write push/pop when command type not push or pop")
+            
     def get_label(self, label):
         return f"{self.currentFunction}${label}"
 
