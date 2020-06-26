@@ -28,30 +28,37 @@ def main():
         vm_files = [file for file in os.listdir(input_arg) if file.endswith(".vm")]
         # os.path.join(input_arg, file)
         out_file = input_arg + ".asm"
-        print(vm_files)
-        print(out_file)
+        print("vm files:", vm_files)
+        print("output file:", out_file)
         if len(vm_files) < 1:
             print("No vm files found in", input_arg)
             return
-        print(len(vm_files), "vm file(s) found.")
-        return
+        print(len(vm_files), "vm file(s) found.\n\n")
     else:
         print(f"Error: no file or directory found named \"{input_arg}\"")
         return
 
+
 # create parser and writer
-    for vm_file in vm_files:
-        parser = Parser(input_arg)
-        print(f"parsing from '{input_arg}'...")
-        writer = CodeWriter(out_file)
-        print(f"writing to '{out_file}'...")
+
+    writer = CodeWriter(out_file)
+    print(f"writing to '{out_file}'...")
+    if arg_type == "directory":
+        print("writing init...\n\n")
         writer.write_init()
+
+    for vm_file in vm_files: 
+        parser = Parser(os.path.join(input_arg, vm_file))
+        print(f"parsing from '{vm_file}'...")
+        writer.set_file_name(vm_file[:-3])
+
         while parser.has_more_commands():
             parser.advance()
             comType = parser.command_type()
             current = parser.currentCommand
+            print(current)
 
-            # this is ugly. Alternatives?
+            # this is horrible. Alternatives?
             #   -some kind of map / dict
             #   -CommandType abstract class with writeCommand method?
             #       -writeCommand belongs in CodeWriter
@@ -75,11 +82,11 @@ def main():
             else:
                 print("Error: unrecognized command:")
                 print(parser.currentCommand)
-        
         parser.close()
-        writer.close()
-    print("done.")
-
+        print("done parsing and writing", vm_file, end="\n\n")
+        
+    print("Translation Complete.")
+    writer.close()
 
 if __name__ == "__main__":
     main()

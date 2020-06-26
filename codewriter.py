@@ -31,6 +31,11 @@ class CodeWriter:
                 arg1 < arg2           
         '''
 
+    def set_file_name(self, file_name):
+        self.module = file_name
+        # self.returnLabelCount = 0
+
+
     def get_comparison(self, command):
         jmpLabel = f"JMP_{command.upper()}_{self.labelCount[command]}"
         doneLabel = f"DONE_{command.upper()}_{self.labelCount[command]}"
