@@ -230,8 +230,11 @@ class CodeWriter:
 
         self.stream.write(buffer)
 
-    def write_call(self, function_name, num_args):
-        buffer = f"// call {function_name} {num_args}\n"
+    def write_call(self, function_name, num_args, internal_call=False):
+        if internal_call:
+            buffer = "\t// init code call to Sys.init\n"
+        else:
+            buffer = f"// call {function_name} {num_args}\n"
 
         # push return address
         retLabel = self.get_return_label()
@@ -330,9 +333,8 @@ class CodeWriter:
     def write_init(self):
         buffer = f"// init\n"
         buffer += asm.val_to_ptr(256, "SP")
-        buffer += "@Sys.init\n"
-        buffer += "0;JMP\n"
         self.stream.write(buffer)
+        self.write_call("Sys.init", 0, internal_call=True)
 
     def close(self):
         self.stream.close()
