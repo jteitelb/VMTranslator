@@ -70,7 +70,13 @@ class Parser:
         index = 1
         if ctype == CommandType.C_ARITHMETIC:
             index = 0
-        return self.currentCommand.split()[index]
+        split = self.currentCommand.split()
+        if len(split) < index + 1:
+            return None
+        return split[index]
 
     def arg2(self):
-        return self.currentCommand.split()[2]
+        split = self.currentCommand.split()
+        if len(split) < 3:
+            return None
+        return split[2]
