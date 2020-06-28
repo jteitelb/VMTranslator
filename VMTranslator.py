@@ -24,16 +24,15 @@ def main():
         out_file = input_arg[:-2] + "asm"
     elif os.path.isdir(input_arg):
         arg_type = "directory"
-        print("Directory Found!")
         vm_files = [file for file in os.listdir(input_arg) if file.endswith(".vm")]
         # os.path.join(input_arg, file)
-        out_file = input_arg + ".asm"
-        print("vm files:", vm_files)
-        print("output file:", out_file)
+        out_base = os.path.basename(input_arg) + ".asm"
+        out_file = os.path.join(input_arg, out_base)
+        print(len(vm_files), "vm files found:", vm_files)
+        print("output file:", out_file, end="\n\n")
         if len(vm_files) < 1:
             print("No vm files found in", input_arg)
             return
-        print(len(vm_files), "vm file(s) found.\n\n")
     else:
         print(f"Error: no file or directory found named \"{input_arg}\"")
         return
@@ -42,21 +41,19 @@ def main():
 # create parser and writer
 
     writer = CodeWriter(out_file)
-    print(f"writing to '{out_file}'...")
     if arg_type == "directory":
-        print("writing init...\n\n")
+        print("writing init...")
         writer.write_init()
 
     for vm_file in vm_files: 
         parser = Parser(os.path.join(input_arg, vm_file))
-        print(f"parsing from '{vm_file}'...")
+        #print(f"parsing from '{vm_file}'...")
         writer.set_file_name(vm_file[:-3])
 
         while parser.has_more_commands():
             parser.advance()
             comType = parser.command_type()
             current = parser.currentCommand
-            print(current)
 
             # this is horrible. Alternatives?
             #   -some kind of map / dict
@@ -83,7 +80,7 @@ def main():
                 print("Error: unrecognized command:")
                 print(parser.currentCommand)
         parser.close()
-        print("done parsing and writing", vm_file, end="\n\n")
+        print("done processing", vm_file, end="\n")
         
     print("Translation Complete.")
     writer.close()
